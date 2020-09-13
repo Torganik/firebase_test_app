@@ -116,7 +116,7 @@ class AppBody extends StatelessWidget {
               ),
               Container(
                 //height: size500,
-                padding: isMobile ? EdgeInsets.all(25) : EdgeInsets.all(16),
+                padding: isMobile ? EdgeInsets.all(25) : EdgeInsets.all(75),
                 color: Colors.white,
                 child: Row(
                   children: [
