@@ -132,7 +132,8 @@ class AppBody extends StatelessWidget {
                         alignment: Alignment.centerLeft,
                         child: Wrap(children: [
                           Text(
-                            "Firebase auth test",textScaleFactor: 2,
+                            "Firebase auth test",
+                            textScaleFactor: 2,
                           ),
                           Container(
                             child: FirebaseControls(),
@@ -176,46 +177,73 @@ class FirebaseControls extends StatefulWidget {
 }
 
 class _FirebaseControlsState extends State<FirebaseControls> {
+  User user;
+
+  void userChangeListener(User usr) {
+    setState(() {
+      this.user = usr;
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    AuthService().setUserChangeListener(this.userChangeListener);
+  }
+
   @override
   Widget build(BuildContext context) {
     final Future<FirebaseApp> _initialization = Firebase.initializeApp();
     Size screenSize = MediaQuery.of(context).size;
 
     return Container(
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-              flex: 1,
-              // FORM
-              child: Container(
-                  child: FutureBuilder(
-                future: _initialization,
-                builder: (context, snapshot) {
-                  // Check for errors
-                  if (snapshot.hasError) {
-                    return SomethingWentWrong();
-                  }
+          Row(
+            children: [
+              Expanded(
+                  flex: 1,
+                  // FORM
+                  child: Container(
+                      child: FutureBuilder(
+                    future: _initialization,
+                    builder: (context, snapshot) {
+                      // Check for errors
+                      if (snapshot.hasError) {
+                        return SomethingWentWrong();
+                      }
 
-                  // Once complete, show your application
-                  if (snapshot.connectionState == ConnectionState.done) {
-                    return LoginForm();
-                  }
+                      // Once complete, show your application
+                      if (snapshot.connectionState == ConnectionState.done) {
+                        return Column(
+                          children: [
+                            RegisterForm(),
+                            SizedBox(
+                              height: 50,
+                            ),
+                            LoginForm(),
+                          ],
+                        );
+                      }
 
-                  // Otherwise, show something whilst waiting for initialization to complete
-                  return Loading();
-                },
-              ))),
-          Expanded(
-              flex: 1,
-              // user data
-              child: Container(
-                child: Column(
-                  children: [
-                    Text(
-                        "Screen is: W${screenSize.width} H:${screenSize.height}"),
-                  ],
-                ),
-              ))
+                      // Otherwise, show something whilst waiting for initialization to complete
+                      return Loading();
+                    },
+                  ))),
+              Expanded(
+                  flex: 1,
+                  // user data
+                  child: Container(
+                    child: Column(
+                      children: [
+                        Text(
+                            "Screen is: W${screenSize.width} H:${screenSize.height}"),
+                        Text("Current user: ${this.user ?? "No user"}"),
+                      ],
+                    ),
+                  ))
+            ],
+          ),
         ],
       ),
     );
@@ -251,69 +279,160 @@ class _LoginFormState extends State<LoginForm> {
   @override
   Widget build(BuildContext context) {
     return Form(
-        key: _formKey,
-        child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      TextFormField(
-          keyboardType: TextInputType.emailAddress,
-          textCapitalization: TextCapitalization.none,
-          validator: (value) {
-            if (value.isEmpty) {
-      return 'Please enter login';
-            }
-            return null;
-          },
-          decoration: InputDecoration(helperText: "Login"),
-          controller: _loginController,
-        ),
-      TextFormField(
-        validator: (value) {
-          if (value.isEmpty) {
-            return 'Please enter password';
-          }
-          return null;
-        },
-        obscureText: _hidePass,
-        decoration: InputDecoration(
-          suffixIcon: GestureDetector(
-              onTapDown: (tapDown) {
-                setState(() {
-                  _hidePass = false;
-                });
-              },
-              onTapUp: (tapDown) {
-                setState(() {
-                  _hidePass = true;
-                });
-              },
-              child: Icon(Icons.remove_red_eye)),
-          helperText: "Password",
-        ),
-        controller: _passwordController,
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextFormField(
+            keyboardType: TextInputType.emailAddress,
+            textCapitalization: TextCapitalization.none,
+            validator: (value) {
+              if (value.isEmpty) {
+                return 'Please enter login';
+              }
+              return null;
+            },
+            decoration: InputDecoration(helperText: "Login"),
+            controller: _loginController,
+          ),
+          TextFormField(
+            validator: (value) {
+              if (value.isEmpty) {
+                return 'Please enter password';
+              }
+              return null;
+            },
+            obscureText: _hidePass,
+            decoration: InputDecoration(
+              suffixIcon: GestureDetector(
+                  onTapDown: (tapDown) {
+                    setState(() {
+                      _hidePass = false;
+                    });
+                  },
+                  onTapUp: (tapDown) {
+                    setState(() {
+                      _hidePass = true;
+                    });
+                  },
+                  child: Icon(Icons.remove_red_eye)),
+              helperText: "Password",
+            ),
+            controller: _passwordController,
+          ),
+          RaisedButton(
+            onPressed: () async {
+              if (_formKey.currentState.validate()) {
+                AuthService auth = AuthService();
+                User usr = await auth.tryToAuth(
+                    _loginController.text, _passwordController.text);
+                if (usr == null) {
+                  Scaffold.of(context)
+                      .showSnackBar(SnackBar(content: Text('Login failed')));
+                } else if (usr is User) {
+                  Scaffold.of(context)
+                      .showSnackBar(SnackBar(content: Text('Login OK')));
+                } else {
+                  Scaffold.of(context).showSnackBar(
+                      SnackBar(content: Text('Shit in auth data')));
+                }
+              }
+            },
+            child: Text('Login'),
+          ),
+        ],
       ),
-      RaisedButton(
-        onPressed: () async {
-          if (_formKey.currentState.validate()) {
-            AuthService auth = AuthService();
-            User usr = await auth.tryToAuth(
-                _loginController.text, _passwordController.text);
-            if (usr == null) {
-              Scaffold.of(context).showSnackBar(
-                  SnackBar(content: Text('Login failed')));
-            } else if (usr is User) {
-              Scaffold.of(context)
-                  .showSnackBar(SnackBar(content: Text('Login OK')));
-            } else {
-              Scaffold.of(context).showSnackBar(
-                  SnackBar(content: Text('Shit in auth data')));
-            }
-          }
-        },
-        child: Text('Login'),
+    );
+  }
+}
+
+class RegisterForm extends StatefulWidget {
+  @override
+  _RegisterFormState createState() => _RegisterFormState();
+}
+
+class _RegisterFormState extends State<RegisterForm> {
+  final _formKey = GlobalKey<FormState>();
+  String _email = "";
+  String _phone = "+";
+  String _fullName = "";
+  String _password = "";
+  bool _loginByPhone = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text("Auth by phone"),
+              Checkbox(
+                  value: _loginByPhone,
+                  onChanged: (val) {
+                    setState(() {
+                      _loginByPhone = val;
+                    });
+                  }),
+            ],
+          ),
+          TextFormField(
+            initialValue: _fullName,
+            textCapitalization: TextCapitalization.sentences,
+            validator: (value) {
+              if (value.isEmpty) {
+                return 'Please enter your full name';
+              }
+              return null;
+            },
+            decoration: InputDecoration(helperText: "What is your name?"),
+          ),
+          TextFormField(
+            initialValue: (_loginByPhone ? _phone : _email),
+            keyboardType: (_loginByPhone
+                ? TextInputType.phone
+                : TextInputType.emailAddress),
+            textCapitalization: TextCapitalization.none,
+            validator: (value) {
+              if (value.isEmpty) {
+                return 'Please enter ${(_loginByPhone ? "Phone" : "E-mail")}';
+              } else {
+                _email = value;
+              }
+              return null;
+            },
+            decoration: InputDecoration(
+                helperText: "${(_loginByPhone ? "Phone" : "E-mail")}"),
+          ),
+          TextFormField(
+            initialValue: _password,
+            validator: (value) {
+              if (value.isEmpty) {
+                return 'Please enter password';
+              } else {
+                _password = value;
+              }
+              return null;
+            },
+            obscureText: true,
+            decoration: InputDecoration(
+              helperText: "Password",
+            ),
+          ),
+          RaisedButton(
+            onPressed: () async {
+              if (_formKey.currentState.validate()) {
+                print("Go to reg: $_email $_password");
+                await AuthService().registerNewUser(_email, _password);
+              }
+            },
+            child: Text('Registration'),
+          ),
+        ],
       ),
-    ],
-        ),
-      );
+    );
+    ;
   }
 }
