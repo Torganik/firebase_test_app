@@ -3,6 +3,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'services/auth.dart';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html';
+import 'dart:ui' as ui;
 
 void main() {
   runApp(MyApp());
@@ -26,7 +29,8 @@ class MainPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: AppBody(),
+      //body: AppBody(),
+      body: WebcamApp(),
     );
   }
 }
@@ -222,6 +226,10 @@ class _FirebaseControlsState extends State<FirebaseControls> {
                               height: 50,
                             ),
                             LoginForm(),
+                            SizedBox(
+                              height: 50,
+                            ),
+                            WebcamApp(),
                           ],
                         );
                       }
@@ -433,6 +441,84 @@ class _RegisterFormState extends State<RegisterForm> {
         ],
       ),
     );
-    ;
+  }
+}
+
+class WebcamApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+        home: WebcamPage(),
+      );
+}
+
+class WebcamPage extends StatefulWidget {
+  @override
+  _WebcamPageState createState() => _WebcamPageState();
+}
+
+class _WebcamPageState extends State<WebcamPage> {
+  // Webcam widget to insert into the tree
+  Widget _webcamWidget;
+  // VideoElement
+  VideoElement _webcamVideoElement;
+  bool frontCam = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Create a video element which will be provided with stream source
+    _webcamVideoElement = VideoElement();
+    // Register an webcam
+
+    ui.platformViewRegistry.registerViewFactory(
+        'webcamVideoElement', (int viewId) => _webcamVideoElement);
+    // Create video widget
+    _webcamWidget =
+        HtmlElementView(key: UniqueKey(), viewType: 'webcamVideoElement');
+    // Access the webcam stream
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    window.navigator.getUserMedia(
+        audio: false, video: {"facingMode": "user"}).then((MediaStream stream) {
+      _webcamVideoElement.srcObject = stream;
+    });
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Text(
+              'Cam MediaStream:',
+              style: TextStyle(fontSize: 30, fontStyle: FontStyle.italic),
+            ),
+            Container(
+              child: Row(
+                children: [
+                  RaisedButton(
+                    onPressed: () {
+                      setState(() {
+                        this.frontCam = !this.frontCam;
+                      });
+                    },
+                    child:
+                        Text("${(frontCam ? "To back cam" : "To front cam")}"),
+                  ),
+                ],
+              ),
+            ),
+            Container(width: 750, height: 750, child: _webcamWidget),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _webcamVideoElement.srcObject.active
+            ? _webcamVideoElement.play()
+            : _webcamVideoElement.pause(),
+        tooltip: 'Start stream, stop stream',
+        child: Icon(Icons.camera_alt),
+      ),
+    );
   }
 }
